@@ -1,0 +1,4 @@
+tensorflow
+svgwrite
+numpy
+display
