@@ -12,6 +12,7 @@ from skimage.draw import line_aa
 
 QUICK_DRAW_BASE_URL = 'https://storage.googleapis.com/quickdraw_dataset/sketchrnn'
 QUICK_DRAW_CATEGORIES_URL = 'https://raw.githubusercontent.com/googlecreativelab/quickdraw-dataset/master/categories.txt'
+TESTING_DRAW_CATEGORIES_URL = 'categories.txt'
 
 def get_bounds(strokes):
 	"""Given a 3-stroke sequence returns the bounds for the respective sketch
@@ -97,7 +98,7 @@ class DataLoader(object):
 				data_format='bitmap',
 				datastore_dir='/tmp/quick-draw-net/data/',
 				dataset_base_url=QUICK_DRAW_BASE_URL,
-				categories_file=QUICK_DRAW_CATEGORIES_URL,
+				categories_file=TESTING_DRAW_CATEGORIES_URL,
 				shuffle=False):
 		assert batch_size < count_per_category
 		assert count_per_category % batch_size == 0
@@ -110,6 +111,10 @@ class DataLoader(object):
 		self.datastore_dir = datastore_dir
 		self.dataset_base_url = dataset_base_url
 		
+		if not os.path.exists(datastore_dir):
+			logging.info('Created Datastore Directory %s' % datastore_dir)
+			os.makedirs(datastore_dir)
+
 		self.categories_path = {}
 		self.categories_url = {}
 		self.idx_to_categories = self.load_categories(categories_file)
@@ -136,12 +141,14 @@ class DataLoader(object):
 		"""
 		categories = []
 		if categories_file.startswith('http://') or categories_file.startswith('https://'):
+			logging.info('Downloading categories file from %s' % categories_file)
 			response = requests.get(categories_file)
 			if response.status_code != 200:
 				raise IOError(msg='Request to %s responded with status %d'
 						% (categories_file, response.status_code))
 			categories = response.content.split('\n')
 		else:
+			logging.info('Opening categories file at %s' % categories_file)
 			categories = open(categories_file).read().split('\n')
 
 		# filter skiped lines and categories that are skipped (starts with #)
@@ -149,25 +156,33 @@ class DataLoader(object):
 		# add the urls if they are valid and give status 200
 
 		for category in categories:
+			# Smaller Dataset
 			category_path = os.path.join(self.datastore_dir, '%s.npz' % category)
 			if os.path.isfile(category_path):
 				self.categories_path[category] = category_path
 
 			category_url = os.path.join(self.dataset_base_url, '%s.npz' % category)
+			logging.info('Pinging to check if exists %s' % category_url)
+
 			response = requests.head(category_url)
 			if response.status_code == 200:
 				self.categories_url[category] = category_url
+				logging.info('Success! Found %s' % category_url)
 			else:
 				logging.warn('Category %s was not found' % category)
 
+			# Full Dataset
 			category_full_path = os.path.join(self.datastore_dir, '%s.full.npz' % category)
 			if os.path.isfile(category_full_path):
 				self.categories_path['%s.full' % category] = category_full_path
 
 			category_full_url = os.path.join(self.dataset_base_url, '%s.full.npz' % category)
+			logging.info('Pinging to check if exists %s' % category_full_url)
+
 			response = requests.head(category_full_url)
 			if response.status_code == 200:
 				self.categories_url['%s.full' % category] = category_full_url
+				logging.info('Success! Found %s' % category)
 			else:
 				logging.warn('Category %s (full) was not found' % category)
 
@@ -189,6 +204,7 @@ class DataLoader(object):
 
 		# download the data if don't have a local copy
 		if category_ not in self.categories_path:
+			logging.info('Downloading category %s to %s' % (category_, self.datastore_dir))
 			response = requests.get(self.categories_url[category_])
 			if response.status_code != 200:
 				raise IOError(msg='Request to %s responded with status %d'
@@ -202,10 +218,12 @@ class DataLoader(object):
 			self.categories_path[category_] = os.path.join(self.datastore_dir, '%s.npz' % category_)
 
 		# load the category data into memory
+		logging.info('Loading %s data to memory' % category_)
 		strokes = np.load(StringIO(open(self.categories_path[category_]).read()))
 
 		# TODO: look for optimization, loads all then returns count_per_category items
 		self.strokes[category_] = strokes[self.dataset_type][:self.count_per_category]
+		logging.info('Loaded %s data' % category_)
 
 	def _increment_idx(self, step_size):
 		self.idx += step_size
