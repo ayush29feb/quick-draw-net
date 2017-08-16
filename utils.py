@@ -66,7 +66,7 @@ def strokes_to_npy(strokes):
 	# TODO: Why do we need to transpose? Fix get_bounds accordingly
 	return img.T
 
-def reshape_to_square(img, size=256):
+def reshape_to_square(img, size=225):
 	"""Given any size numpy array return
 
 	Args:
@@ -239,12 +239,14 @@ class DataLoader(object):
 		category = self.idx_to_categories[self.idx_category]
 		idx_end = min(self.idx+self.batch_size, self.count_per_category)
 		strokes_batch = self.strokes[category][self.idx:idx_end]
+		labels_batch = np.array([self.idx_category] * (idx_end - self.idx))
 
 		self._increment_idx(self.batch_size)
 		
 		if len(strokes_batch) < self.count_per_category:
 			category = self.idx_to_categories[self.idx_category]
 			np.append(strokes_batch, self.strokes[category][0:self.idx])
+			np.append(labels_batch, np.array([self.idx_category] * self.idx))
 
 		if self.data_format != 'bitmap':
 			return strokes_batch
@@ -253,5 +255,5 @@ class DataLoader(object):
 		strokes_to_sqnp = lambda x: reshape_to_square(strokes_to_npy(x))
 		bitmaps_batch = np.array(map(strokes_to_sqnp, strokes_batch))
 		# TODO: Store bitmaps so that we don't have to recompute bitmaps
-		return bitmaps_batch
+		return np.expand_dims(bitmaps_batch, axis=3), labels_batch
 		
