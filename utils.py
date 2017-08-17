@@ -92,8 +92,8 @@ class DataLoader(object):
 
 	def __init__(self,
 				dataset_type='train',
-				batch_size=25,
-				img_size=256,
+				batch_size=20,
+				img_size=225,
 				count_per_category=2000,
 				data_format='bitmap',
 				datastore_dir='/tmp/quick-draw-net/data/',
@@ -130,7 +130,7 @@ class DataLoader(object):
 		# TODO: Store bitmaps so that we don't have to recompute bitmaps
 		# if self.data_format == 'bitmap':
 		# 	self.bitmaps = {}
-		
+
 	def load_categories(self, categories_file):
 		"""Loads the categories line seperated file with all the categories to
 		loaded by the DataLoader. Adds the path to the dataset file in the

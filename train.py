@@ -29,6 +29,8 @@ def training():
     logits = model.inference(images_placeholder)
     loss = model.loss(logits, labels_placeholder)
     train_op = model.training(loss)
+    evaluation1 = model.evaluation(logits, labels_placeholder, k=1)
+    evaluation5 = model.evaluation(logits, labels_placeholder, k=5)
 
     summary = tf.summary.merge_all()
     init = tf.global_variables_initializer()
@@ -38,16 +40,26 @@ def training():
 
     sess.run(init)
 
-    for step in xrange(FLAGS.max_steps):
+    for step in xrange(FLAGS.max_epochs * 200):
       images, labels = data_loader.next_batch()
       feed_dict = { images_placeholder: images, labels_placeholder: labels }
       _, loss_value = sess.run([train_op, loss], feed_dict=feed_dict)
 
-      if step % 100 == 0:
+      if step % 200 == 0:
         print('Step %d: loss = %.2f' % (step, loss_value))
         summary_str = sess.run(summary, feed_dict=feed_dict)
         summary_writer.add_summary(summary_str, step)
         summary_writer.flush()
+
+    correct1, correct5 = 0, 0
+    for step in xrange(200):
+      images, labels = data_loader.next_batch()
+      feed_dict = { images_placeholder: images, labels_placeholder: labels }
+      correct1_, correct5_ = sess.run([evaluation1, evaluation5], feed_dict=feed_dict)
+      correct1 += correct1_
+      correct5 += correct5_
+    
+    print('Training Accuracy is %.2f (top-1) and %.2f (top-5)' % (correct1, correct5))
 
 def main(_):
   if tf.gfile.Exists(FLAGS.log_dir):
@@ -76,9 +88,9 @@ if __name__ == '__main__':
     help='Initial Learning Rate'
   )
   parser.add_argument(
-    '--max_steps',
+    '--max_epochs',
     type=int,
-    default=2000,
+    default=10,
     help='Number of steps to run trainer.'
   )
   logging.basicConfig(level=logging.INFO)

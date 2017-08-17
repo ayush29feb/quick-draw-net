@@ -147,7 +147,7 @@ class SketchANet(object):
 
     return train_op
 
-  def evaluation(self, logits, labels, training=True):
+  def evaluation(self, logits, labels, k=1, training=True):
     """Evaluates the number of correct predictions for the given logits and labels
     Args:
       logits: the logits obtained from the inference graph
